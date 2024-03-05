@@ -25,7 +25,7 @@ def armpit():
         pass
 
     class Update:
-        loaded, rerun_binding = [], None
+        loaded, rerun_binding = None, None
 
         def __init__(self, path):
             self.path = os.path.abspath(os.path.expanduser(path))
@@ -37,7 +37,9 @@ def armpit():
             elif not self.path.endswith('.py'):
                 raise ImportError(
                     f"Unable to open non-python file '{self.fname}'")
-            if not any(module.path == self.path for module in self.loaded):
+            if not any(mod.path == self.path for mod in self.loaded or []):
+                if self.__class__.loaded is None:
+                    self.__class__.loaded = []
                 self.__class__.loaded.append(self)
 
             try:
@@ -86,7 +88,7 @@ def armpit():
                     f"No modules to update, add one with `{cls.ref()}(<path>)`")
 
             err = []
-            for module in cls.loaded:
+            for module in cls.loaded or []:
                 try:
                     if force:
                         module.update()
@@ -94,7 +96,7 @@ def armpit():
                         module()
                 except FileUnmodifiedError as e:
                     err.append(e)
-            if len(err) == len(cls.loaded):
+            if len(err) == len(cls.loaded or []):
                 for e in err:
                     print(e)
                 if cls.rerun_binding is None:
@@ -120,13 +122,6 @@ def armpit():
                 f"as a macro for {cls.ref()}.{f}()")
             readline.parse_and_bind(f'{keys}: "\\e[H{cls.ref()}.{f}()#\n"')
 
-    class Armpit(Update):
-        # "incremental revision" --> "import iterator" --> "impit" --> "armpit"
-        # factory implementation without transitioning away from modifying cls
-        def __new__(cls):
-            return type(cls.__name__, (Update,), {
-                **Update.__dict__, "loaded": []})
-
-    return Armpit
+    return Update
 
 armpit = armpit()

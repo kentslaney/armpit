@@ -6,7 +6,7 @@ def armpit():
     path = os.path.join(path, "update.py")
 
     exec(compile(open(path).read(), "update.py", "exec"), globals())
-    class armpit(armpit()):
+    class armpit(armpit):
         pass
 
     bind = int(sys.argv[1])
