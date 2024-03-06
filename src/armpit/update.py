@@ -1,5 +1,5 @@
 def armpit():
-    import os, readline, datetime, traceback, logging
+    import os, readline, datetime, traceback, logging, sys, importlib
 
     def ago(date):
         diff = datetime.datetime.now() - date
@@ -110,6 +110,11 @@ def armpit():
         @classmethod
         def rerun(cls):
             return cls.current(True)
+
+        @staticmethod
+        def reload_modules():
+            for module in sys.modules.values():
+                importlib.reload(module)
 
         @classmethod
         def bind(cls, keys=r'\C-o', f="rerun"):
