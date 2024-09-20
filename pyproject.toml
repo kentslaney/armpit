@@ -5,6 +5,8 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "armpit"
 version = "1.0"
+description = "Python incremental revision"
+readme = "README.md"
 
 [project.scripts]
 armpit = "armpit:main"
