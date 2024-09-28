@@ -87,8 +87,9 @@ def armpit():
                 self._removals.append(adding)
 
         def reset_path(self):
-            for i in self._removals:
-                sys.path.remove(str(i))
+            for i in self._removals or ():
+                if str(i) in sys.path:
+                    sys.path.remove(str(i))
 
         @classmaps
         def flat_path(self):
@@ -129,7 +130,6 @@ def armpit():
             try:
                 exec(source, scope)
             finally:
-                self.reset_path()
                 print(f"Module '{self.fname}' {event} in {ago(self.prev)}")
                 del scope["__name__"], scope["__file__"]
                 globals().update(scope)
@@ -183,13 +183,19 @@ def armpit():
                 module = sys.modules[package]
                 if not hasattr(module, "__cached__"):
                     continue
-                cached = pathlib.Path(module.__cached__).stat().st_mtime
+                cached = pathlib.Path(module.__cached__)
+                if not cached.is_file():
+                    continue
+                mtime = cached.stat().st_mtime
                 paths = getattr(module, "__path__", []) + [module.__file__]
                 latest = min(pathlib.Path(i).stat().st_mtime for i in paths)
-                if latest > cached:
+                if latest > mtime:
                     changed = True
                     print("reloading module", package)
-                    importlib.reload(module)
+                    try:
+                        importlib.reload(module)
+                    except ModuleNotFoundError:
+                        pass
             return changed
 
         @classmethod
