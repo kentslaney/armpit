@@ -28,7 +28,7 @@ jobs:
   github-release:
     name: Sign with Sigstore and publish GitHub release
     needs:
-    - pypi
+    - build
     runs-on: ubuntu-latest
 
     permissions:
