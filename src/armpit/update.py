@@ -1,5 +1,6 @@
 def armpit():
-    import os, readline, datetime, traceback, logging, sys, importlib, pathlib
+    import os, readline, datetime, traceback, logging, sys, importlib, pathlib,\
+            types
 
     def ago(date):
         diff = datetime.datetime.now() - date
@@ -182,6 +183,8 @@ def armpit():
             for package in checking:
                 module = sys.modules[package]
                 if not hasattr(module, "__cached__"):
+                    continue
+                if isinstance(module.__cached__, types.ModuleType):
                     continue
                 cached = pathlib.Path(module.__cached__)
                 if not cached.is_file():
