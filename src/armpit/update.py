@@ -191,7 +191,9 @@ def armpit():
                     continue
                 mtime = cached.stat().st_mtime
                 paths = getattr(module, "__path__", []) + [module.__file__]
-                latest = min(pathlib.Path(i).stat().st_mtime for i in paths)
+                latest = min(
+                        i.stat().st_mtime for i in map(pathlib.Path, paths)
+                        if i.is_file())
                 if latest > mtime:
                     changed = True
                     print("reloading module", package)
