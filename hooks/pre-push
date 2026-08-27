@@ -1,0 +1,35 @@
+#!/bin/sh
+# Refuse to push a version tag (vX.Y.Z) whose name doesn't match
+# pyproject.toml's version at the commit it points to -- catches
+# "git tag vX.Y.Z && git push --tags" after forgetting to bump the
+# version (or bumping it and typoing the tag) before it reaches CI,
+# since the publish workflow only runs off a `v*` tag push.
+
+zero="0000000000000000000000000000000000000000"
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+    case "$remote_ref" in
+        refs/tags/v*) ;;
+        *) continue ;;
+    esac
+
+    [ "$local_sha" = "$zero" ] && continue  # deleting the tag
+
+    tag="${remote_ref#refs/tags/}"
+    version=$(git show "$local_sha:pyproject.toml" 2>/dev/null \
+        | grep -m1 '^version = ' | sed -E 's/version = "(.*)"/\1/')
+
+    if [ -z "$version" ]; then
+        echo "pre-push: couldn't read a version from pyproject.toml at $local_sha" >&2
+        exit 1
+    fi
+
+    expected="v$version"
+    if [ "$tag" != "$expected" ]; then
+        echo "pre-push: tag '$tag' doesn't match pyproject.toml's version" >&2
+        echo "pre-push: expected '$expected', got '$tag'" >&2
+        exit 1
+    fi
+done
+
+exit 0

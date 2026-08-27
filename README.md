@@ -23,3 +23,17 @@ python3 -m unittest discover -s tests
 
 No dependencies required. `pytest` also works if installed
 (`pip install -e .[test]`).
+
+## Releasing
+
+The publish workflow only runs off a `v*` tag push, and reads the version
+straight out of that tag, so:
+
+```sh
+git tag v1.2.3   # must match pyproject.toml's version
+git push --tags
+```
+
+Run `git config core.hooksPath hooks` once per clone to enable a `pre-push`
+hook that refuses to push a `vX.Y.Z` tag that doesn't match
+`pyproject.toml`'s version.
