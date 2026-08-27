@@ -1,4 +1,4 @@
-import pty, sys, os.path, argparse
+import pty, sys, os.path, argparse, re, tempfile
 
 class ArgString(str):
     def __new__(cls, manual, *a, **kw):
@@ -65,6 +65,13 @@ group.add_argument(
             "specify the parent package as the directory containing the script "
             "being run"))
 
+parser.add_argument("--basic-repl", action="store_true", help=(
+    "set PYTHON_BASIC_REPL=1 so Python 3.14+'s new PyREPL doesn't ignore "
+    "readline/.inputrc (which armpit's own keybinding relies on); if the "
+    "active inputrc doesn't already set vi editing mode, run with a "
+    "temporary inputrc -- layered on top of the real one, via $include -- "
+    "that does, without touching ~/.inputrc"))
+
 def split_module_invocation(argv):
     """Mimic `python -m module ...`: everything after a bare `-m` is passed
     through untouched as the module's own argv, rather than being parsed as
@@ -80,6 +87,38 @@ def split_module_invocation(argv):
         parser.error("argument -m: expected one argument")
     module, module_args = argv[idx + 1], argv[idx + 2:]
     return argv[:idx], module, module_args
+
+VI_MODE_RE = re.compile(r'(?im)^[ \t]*set[ \t]+editing-mode[ \t]+vi[ \t]*$')
+
+def resolve_inputrc_path():
+    """Where GNU readline would look for the user's own inputrc: $INPUTRC
+    if set, otherwise ~/.inputrc. (readline also always reads /etc/inputrc
+    first as a system-wide base -- that's untouched by any of this.)"""
+    return os.environ.get("INPUTRC") or os.path.expanduser("~/.inputrc")
+
+def inputrc_has_vi_mode(path):
+    """Whether `path` itself declares `set editing-mode vi`. Doesn't follow
+    $include chains inside the file -- good enough for "did the user already
+    opt into vi bindings", which is what this is actually deciding."""
+    if not path or not os.path.isfile(path):
+        return False
+    try:
+        with open(path) as f:
+            content = f.read()
+    except OSError:
+        return False
+    return bool(VI_MODE_RE.search(content))
+
+def write_temp_vi_inputrc(existing_path):
+    """A standalone inputrc, in a new temp file, that $includes whatever the
+    user already has (if anything) and then forces vi editing mode. Returns
+    the temp file's path; the caller is responsible for removing it."""
+    fd, path = tempfile.mkstemp(prefix="armpit-inputrc-", suffix=".inputrc")
+    with os.fdopen(fd, "w") as f:
+        if existing_path and os.path.isfile(existing_path):
+            f.write(f"$include {existing_path}\n")
+        f.write("set editing-mode vi\n")
+    return path
 
 def main():
     path = os.path.dirname(os.path.realpath(__file__))
@@ -100,4 +139,19 @@ def main():
 
     ctrl = hex(bind)[2:] + args.primary + args.secondary + str(package)
     target = ["-m", module, *module_args] if module is not None else args.paths
-    pty.spawn(["python", "-i", path, ctrl] + package_path + target)
+
+    temp_inputrc = None
+    if args.basic_repl:
+        os.environ["PYTHON_BASIC_REPL"] = "1"
+        if not inputrc_has_vi_mode(resolve_inputrc_path()):
+            temp_inputrc = write_temp_vi_inputrc(resolve_inputrc_path())
+            os.environ["INPUTRC"] = temp_inputrc
+
+    try:
+        pty.spawn(["python", "-i", path, ctrl] + package_path + target)
+    finally:
+        if temp_inputrc is not None:
+            try:
+                os.remove(temp_inputrc)
+            except OSError:
+                pass

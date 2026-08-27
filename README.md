@@ -9,6 +9,12 @@ script.py` opens the REPL and drops straight into `pdb` debugging
 `script.py`, with everything after the module name passed through to it
 untouched.
 
+Python 3.14's new PyREPL ignores readline/`.inputrc` (which `armpit`'s own
+`Ctrl-H` binding relies on). Pass `--basic-repl` to set `PYTHON_BASIC_REPL=1`
+for the session; if your inputrc doesn't already set vi editing mode,
+`armpit` runs with a temporary inputrc (layered on top of your real one via
+`$include`) that does, without touching `~/.inputrc`.
+
 ## Tests
 
 ```sh
