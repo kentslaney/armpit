@@ -20,8 +20,12 @@ def armpit():
         else:
             armpit.flat_package()
 
-    for module in sys.argv[2 + (packaged & 1):]:
-        armpit(module)
+    rest = sys.argv[2 + (packaged & 1):]
+    if rest[:1] == ["-m"]:
+        armpit.from_module(rest[1], rest[2:])
+    else:
+        for module in rest:
+            armpit(module)
 
     if bind & 1:
         armpit.bind(r'\C-' + primary, 'current', bind & 4)

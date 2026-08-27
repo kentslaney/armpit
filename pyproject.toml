@@ -10,3 +10,9 @@ readme = "README.md"
 
 [project.scripts]
 armpit = "armpit:main"
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

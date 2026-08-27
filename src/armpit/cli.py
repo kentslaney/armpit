@@ -65,11 +65,31 @@ group.add_argument(
             "specify the parent package as the directory containing the script "
             "being run"))
 
+def split_module_invocation(argv):
+    """Mimic `python -m module ...`: everything after a bare `-m` is passed
+    through untouched as the module's own argv, rather than being parsed as
+    armpit's own options.
+
+    Returns (remaining_argv, module_name_or_None, module_args).
+    """
+    argv = list(argv)
+    if "-m" not in argv:
+        return argv, None, []
+    idx = argv.index("-m")
+    if idx + 1 >= len(argv):
+        parser.error("argument -m: expected one argument")
+    module, module_args = argv[idx + 1], argv[idx + 2:]
+    return argv[:idx], module, module_args
+
 def main():
     path = os.path.dirname(os.path.realpath(__file__))
     path = os.path.join(path, "armpit.py")
 
-    args = parser.parse_args()
+    argv, module, module_args = split_module_invocation(sys.argv[1:])
+    args = parser.parse_args(argv)
+    if module is not None and args.paths:
+        parser.error("argument -m: not allowed with script paths")
+
     bind = args.bind + 4 * (not args.primary.manual)
     bind += 8 * (not args.secondary.manual)
 
@@ -79,4 +99,5 @@ def main():
     package = package + 4 * args.flat_path + 8 * args.main
 
     ctrl = hex(bind)[2:] + args.primary + args.secondary + str(package)
-    pty.spawn(["python", "-i", path, ctrl] + package_path + args.paths)
+    target = ["-m", module, *module_args] if module is not None else args.paths
+    pty.spawn(["python", "-i", path, ctrl] + package_path + target)
