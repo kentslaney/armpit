@@ -138,6 +138,18 @@ def armpit():
             self.package(scope)
             if self.argv is not None:
                 prev_argv, sys.argv = sys.argv, self.argv
+
+            # some `-m` targets (pdb chief among them) run/debug their
+            # target by repurposing the *real* sys.modules["__main__"] --
+            # e.g. pdb clears and rebuilds it wholesale so the debuggee
+            # looks like it was run directly. Since armpit's own REPL lives
+            # in that same __main__ (`python -i` keeps the script's globals
+            # as the REPL's), that wipes out armpit's own state, including
+            # the `armpit` name itself. Snapshot it beforehand so anything
+            # that goes missing is restored afterwards.
+            main = sys.modules.get("__main__")
+            before = dict(main.__dict__) if self.argv is not None and main else None
+
             try:
                 exec(source, scope)
             finally:
@@ -147,6 +159,11 @@ def armpit():
                 del scope["__name__"], scope["__file__"]
                 scope.pop("__package__", None)
                 globals().update(scope)
+                if before is not None:
+                    main = sys.modules.get("__main__")
+                    if main is not None:
+                        for key, value in before.items():
+                            main.__dict__.setdefault(key, value)
 
         @classmethod
         def from_module(cls, name, argv=()):
